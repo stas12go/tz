@@ -15,24 +15,43 @@ class MyRedis implements MyCache
 	public $client;
 
 	/**
-	 * @inheritDoc
-	 * @throws Exception
+	 * Time to live
 	 */
-	public function add(array $params, $ttl = 3600): string
+	private const TTL = 3600;
+
+	/**
+	 * @inheritDoc
+	 */
+	public function add(...$params): bool
 	{
-		if (count($params) === 2) {
-			list($key, $value) = $params;
-		} else {
-			throw new ArgumentCountError('You have to pass {key} {value} to execute "redis add" method!' . PHP_EOL);
+		list($key, $value) = $params;
+
+		if (empty($key) || empty($value)) {
+			throw new ArgumentCountError("You have to pass {key} {value} to execute \"redis add\" method!\n");
 		}
 
-		$result = $this->client->set($key, $value);
+		$hasKeyBeenSaved = $this->client->set($key, $value);
 
-		if ($result == 'OK') {
-			$this->client->expire($key, $ttl);
+		if ($hasKeyBeenSaved == 'OK') {
+			$this->client->expire($key, self::TTL);
+
+			return true;
 		} else {
-			throw new Exception('Oops! Something went wrong!');
+			throw new Exception("Oops! Something went wrong!\n");
 		}
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function delete(?string $key): bool
+	{
+		if (!isset($key)) {
+			throw new TypeError("You have to pass {key} to execute \"redis delete\" method!\n");
+		}
+
+		$countOfDeletedEntries = $this->client->del($key);
+		$result = is_numeric($countOfDeletedEntries);
 
 		return $result;
 	}
@@ -40,16 +59,11 @@ class MyRedis implements MyCache
 	/**
 	 * @inheritDoc
 	 */
-	public function delete(array $params): string
+	public function getAll(string $pattern = '*'): array
 	{
-		if (count($params) === 1) {
-			$key = $params[0];
-		} else {
-			throw new ArgumentCountError('You have to pass {key} to execute "redis delete" method!' . PHP_EOL);
-		}
-
-		$countOfDeletedEntries = $this->client->del($key);
-		$result = 'Count of deleted entries: ' . $countOfDeletedEntries . '.';
+		$keys = $this->client->keys($pattern);
+		$values = $this->client->mget($keys);
+		$result = array_combine($keys, $values);
 
 		return $result;
 	}

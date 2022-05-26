@@ -4,7 +4,7 @@ use Predis\Client;
 
 trait MyConstructor
 {
-	public function __construct(?string $method, ?array $params)
+	public function __construct(?string $method)
 	{
 		if (isset($method)) {
 			if (method_exists(static::class, $method)) {
